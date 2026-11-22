@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Jack - Galería de ST</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        h1 { color: #facc15; margin-bottom: 5px; }
+        .mesa {
+            background-color: #065f46; /* Paño verde oscuro de casino */
+            border: 4px solid #facc15;
+            border-radius: 12px;
+            padding: 20px;
+            width: 450px;
+            text-align: center;
+            box-shadow: 0 0 25px rgba(0,0,0,0.5);
+        }
+        .mano { margin: 15px 0; min-height: 50px; }
+        .carta {
+            display: inline-block;
+            background: #fff;
+            color: #000;
+            padding: 10px 15px;
+            margin: 0 5px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .botones { margin-top: 20px; display: flex; justify-content: center; gap: 10px; }
+        .btn {
+            background-color: #38bdf8;
+            color: #0f172a;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .btn:hover { background-color: #7dd3fc; }
+        .btn:disabled { background-color: #64748b; cursor: not-allowed; }
+        .mensaje { font-size: 1.3rem; font-weight: bold; margin-top: 15px; min-height: 30px; color: #facc15; }
+        .volver { margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1>♠️ Black Jack 21</h1>
+
+    <div class="mesa">
+        <h3>Crupier (Máquina)</h3>
+        <div id="cartasCrupier" class="mano"></div>
+        <div>Puntuación: <span id="puntosCrupier">0</span></div>
+
+        <hr style="border-color: #047857; margin: 20px 0;">
+
+        <h3>Tus Cartas</h3>
+        <div id="cartasJugador" class="mano"></div>
+        <div>Puntuación: <span id="puntosJugador">0</span></div>
+
+        <div id="mensaje" class="mensaje"></div>
+
+        <div class="botones">
+            <button id="btnPedir" class="btn" onclick="pedirCarta()">Pedir Carta</button>
+            <button id="btnPlantarse" class="btn" onclick="plantarse()">Plantarse</button>
+            <button id="btnReiniciar" class="btn" onclick="iniciarJuego()" style="display:none;">Jugar de Nuevo</button>
+        </div>
+    </div>
+
+    <div class="volver">
+        <a href="../index.html" class="btn">Volver a la Galería</a>
+    </div>
+
+    <script>
+        let mazo = [];
+        let manoJugador = [];
+        let manoCrupier = [];
+        let juegoTerminado = false;
+
+        const tipos = ['♠️', '♥️', '♦️', '♣️'];
+        const valores = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+
+        function crearMazo() {
+            mazo = [];
+            for (let t of tipos) {
+                for (let v of valores) {
+                    mazo.push({ tipo: t, valor: v });
+                }
+            }
+            // Mezclar mazo
+            mazo.sort(() => Math.random() - 0.5);
+        }
+
+        function obtenerValorCarta(carta) {
+            if (['J', 'Q', 'K'].includes(carta.valor)) return 10;
+            if (carta.valor === 'A') return 11;
+            return parseInt(carta.valor);
+        }
+
+        function calcularPuntos(mano) {
+            let puntos = 0;
+            let ases = 0;
+            for (let carta of mano) {
+                puntos += obtenerValorCarta(carta);
+                if (carta.valor === 'A') ases++;
+            }
+            while (puntos > 21 && ases > 0) {
+                puntos -= 10;
+                ases--;
+            }
+            return puntos;
+        }
+
+        function iniciarJuego() {
+            crearMazo();
+            manoJugador = [mazo.pop(), mazo.pop()];
+            manoCrupier = [mazo.pop(), mazo.pop()];
+            juegoTerminado = false;
+
+            document.getElementById("mensaje").innerText = "";
+            document.getElementById("btnPedir").style.display = "inline-block";
+            document.getElementById("btnPlantarse").style.display = "inline-block";
+            document.getElementById("btnReiniciar").style.display = "none";
+            document.getElementById("btnPedir").disabled = false;
+            document.getElementById("btnPlantarse").disabled = false;
+
+            actualizarVista(false);
+        }
+
+        function actualizarVista(mostrarTodoCrupier) {
+            let divJugador = document.getElementById("cartasJugador");
+            let divCrupier = document.getElementById("cartasCrupier");
+
+            divJugador.innerHTML = manoJugador.map(c => `<div class="carta">${c.valor}${c.tipo}</div>`).join('');
+            
+            if (mostrarTodoCrupier || juegoTerminado) {
+                divCrupier.innerHTML = manoCrupier.map(c => `<div class="carta">${c.valor}${c.tipo}</div>`).join('');
+                document.getElementById("puntosCrupier").innerText = calcularPuntos(manoCrupier);
+            } else {
+                divCrupier.innerHTML = `<div class="carta">${manoCrupier[0].valor}${manoCrupier[0].tipo}</div><div class="carta">❓</div>`;
+                document.getElementById("puntosCrupier").innerText = obtenerValorCarta(manoCrupier[0]);
+            }
+
+            let pJugador = calcularPuntos(manoJugador);
+            document.getElementById("puntosJugador").innerText = pJugador;
+
+            if (pJugador > 21 && !juegoTerminado) {
+                juegoTerminado = true;
+                terminarJuego("¡Te pasaste de 21! Gana la máquina.");
+            }
+        }
+
+        function pedirCarta() {
+            if (juegoTerminado) return;
+            manoJugador.push(mazo.pop());
+            actualizarVista(false);
+        }
+
+        function plantarse() {
+            if (juegoTerminado) return;
+            juegoTerminado = true;
+
+            document.getElementById("btnPedir").disabled = true;
+            document.getElementById("btnPlantarse").disabled = true;
+
+            let pCrupier = calcularPuntos(manoCrupier);
+            while (pCrupier < 17) {
+                manoCrupier.push(mazo.pop());
+                pCrupier = calcularPuntos(manoCrupier);
+            }
+
+            actualizarVista(true);
+
+            let pJugador = calcularPuntos(manoJugador);
+            let mensajeFinal = "";
+
+            if (pCrupier > 21) {
+                mensajeFinal = "¡La máquina se pasó! ¡Ganaste!";
+            } else if (pJugador > pCrupier) {
+                mensajeFinal = "¡Felicitaciones, ganaste!";
+            } else if (pJugador < pCrupier) {
+                mensajeFinal = "Gana la máquina.";
+            } else {
+                mensajeFinal = "¡Empate!";
+            }
+
+            terminarJuego(mensajeFinal);
+        }
+
+        function terminarJuego(texto) {
+            document.getElementById("mensaje").innerText = texto;
+            document.getElementById("btnPedir").style.display = "none";
+            document.getElementById("btnPlantarse").style.display = "none";
+            document.getElementById("btnReiniciar").style.display = "inline-block";
+        }
+
+        iniciarJuego();
+    </script>
+</body>
+</html>

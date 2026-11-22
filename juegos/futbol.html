@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Futst - Galería de ST</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 { color: #38bdf8; margin-bottom: 5px; }
+        .marcador {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            gap: 30px;
+        }
+        .azul { color: #3b82f6; }
+        .rojo { color: #ef4444; }
+        canvas {
+            background-color: #15803d; /* Césped verde */
+            border: 4px solid #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.5);
+        }
+        .instrucciones {
+            margin-top: 10px;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        .controles { margin-top: 15px; display: flex; gap: 15px; }
+        .btn {
+            background-color: #38bdf8;
+            color: #0f172a;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .btn:hover { background-color: #7dd3fc; }
+    </style>
+</head>
+<body>
+
+    <h1>⚽ Futst</h1>
+    <div class="marcador">
+        <span class="azul">Azul: <span id="golesAzul">0</span></span>
+        <span>-</span>
+        <span class="rojo">Rojo: <span id="golesRojo">0</span></span>
+    </div>
+
+    <canvas id="cancha" width="700" height="400"></canvas>
+    
+    <div class="instrucciones">Jugador Azul: <strong>W A S D</strong> | Jugador Rojo: <strong>Flechas</strong> (Gana el primero a 5 goles)</div>
+
+    <div class="controles">
+        <button class="btn" onclick="reiniciarPartido()">Reiniciar Partido</button>
+        <a href="../index.html" class="btn">Volver a la Galería</a>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("cancha");
+        const ctx = canvas.getContext("2d");
+
+        let golesAzul = 0;
+        let golesRojo = 0;
+        const teclas = {};
+
+        // Configuración de los jugadores y la pelota
+        const j1 = { x: 150, y: 200, radio: 20, color: "#3b82f6", vel: 4 };
+        const j2 = { x: 550, y: 200, radio: 20, color: "#ef4444", vel: 4 };
+        const pelota = { x: 350, y: 200, radio: 12, vx: 0, vy: 0 };
+
+        const arcoAlto = 120;
+        const arcoY = (canvas.height - arcoAlto) / 2;
+
+        document.addEventListener("keydown", e => teclas[e.key.toLowerCase()] = true);
+        document.addEventListener("keyup", e => teclas[e.key.toLowerCase()] = false);
+
+        function reiniciarPosiciones() {
+            j1.x = 150; j1.y = 200;
+            j2.x = 550; j2.y = 200;
+            pelota.x = 350; pelota.y = 200;
+            pelota.vx = 0; pelota.vy = 0;
+        }
+
+        function reiniciarPartido() {
+            golesAzul = 0;
+            golesRojo = 0;
+            document.getElementById("golesAzul").innerText = 0;
+            document.getElementById("golesRojo").innerText = 0;
+            reiniciarPosiciones();
+        }
+
+        function moverJugadores() {
+            // Jugador 1 (WASD)
+            if (teclas["w"] && j1.y - j1.radio > 0) j1.y -= j1.vel;
+            if (teclas["s"] && j1.y + j1.radio < canvas.height) j1.y += j1.vel;
+            if (teclas["a"] && j1.x - j1.radio > 0) j1.x -= j1.vel;
+            if (teclas["d"] && j1.x + j1.radio < canvas.width) j1.x += j1.vel;
+
+            // Jugador 2 (Flechas)
+            if (teclas["arrowup"] && j2.y - j2.radio > 0) j2.y -= j2.vel;
+            if (teclas["arrowdown"] && j2.y + j2.radio < canvas.height) j2.y += j2.vel;
+            if (teclas["arrowleft"] && j2.x - j2.radio > 0) j2.x -= j2.vel;
+            if (teclas["arrowright"] && j2.x + j2.radio < canvas.width) j2.x += j2.vel;
+        }
+
+        function colisionJugadorPelota(jugador) {
+            const dx = pelota.x - jugador.x;
+            const dy = pelota.y - jugador.y;
+            const distancia = Math.hypot(dx, dy);
+
+            if (distancia < pelota.radio + jugador.radio) {
+                const angulo = Math.atan2(dy, dx);
+                const fuerza = 7;
+                pelota.vx = Math.cos(angulo) * fuerza;
+                pelota.vy = Math.sin(angulo) * fuerza;
+            }
+        }
+
+        function actualizar() {
+            moverJugadores();
+            colisionJugadorPelota(j1);
+            colisionJugadorPelota(j2);
+
+            // Movimiento y fricción de la pelota
+            pelota.x += pelota.vx;
+            pelota.y += pelota.vy;
+            pelota.vx *= 0.97;
+            pelota.vy *= 0.97;
+
+            // Rebote arriba y abajo
+            if (pelota.y - pelota.radio < 0 || pelota.y + pelota.radio > canvas.height) {
+                pelota.vy *= -1;
+            }
+
+            // Verificar goles o rebote en paredes laterales
+            if (pelota.x - pelota.radio < 0) {
+                if (pelota.y > arcoY && pelota.y < arcoY + arcoAlto) {
+                    golesRojo++;
+                    document.getElementById("golesRojo").innerText = golesRojo;
+                    verificarGanador();
+                    reiniciarPosiciones();
+                } else {
+                    pelota.vx *= -1;
+                }
+            }
+
+            if (pelota.x + pelota.radio > canvas.width) {
+                if (pelota.y > arcoY && pelota.y < arcoY + arcoAlto) {
+                    golesAzul++;
+                    document.getElementById("golesAzul").innerText = golesAzul;
+                    verificarGanador();
+                    reiniciarPosiciones();
+                } else {
+                    pelota.vx *= -1;
+                }
+            }
+
+            dibujar();
+            requestAnimationFrame(actualizar);
+        }
+
+        function verificarGanador() {
+            if (golesAzul === 5) {
+                alert("¡Gana el Equipo Azul!");
+                reiniciarPartido();
+            } else if (golesRojo === 5) {
+                alert("¡Gana el Equipo Rojo!");
+                reiniciarPartido();
+            }
+        }
+
+        function dibujar() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Líneas de la cancha
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2, canvas.height / 2, 50, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Arcos
+            ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+            ctx.fillRect(0, arcoY, 10, arcoAlto);
+            ctx.fillRect(canvas.width - 10, arcoY, 10, arcoAlto);
+
+            // Jugador 1
+            ctx.fillStyle = j1.color;
+            ctx.beginPath();
+            ctx.arc(j1.x, j1.y, j1.radio, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#fff";
+            ctx.stroke();
+
+            // Jugador 2
+            ctx.fillStyle = j2.color;
+            ctx.beginPath();
+            ctx.arc(j2.x, j2.y, j2.radio, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Pelota
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(pelota.x, pelota.y, pelota.radio, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        actualizar();
+    </script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viborita - Galería de ST</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 { color: #4ade80; margin-bottom: 5px; }
+        .panel-puntajes {
+            display: flex;
+            gap: 30px;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            background-color: #1e293b;
+            padding: 10px 25px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+        .record { color: #facc15; font-weight: bold; }
+        canvas {
+            background-color: #1e293b;
+            border: 3px solid #4ade80;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
+        }
+        .controles { margin-top: 20px; display: flex; gap: 15px; }
+        .btn {
+            background-color: #38bdf8;
+            color: #0f172a;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .btn:hover { background-color: #7dd3fc; }
+    </style>
+</head>
+<body>
+
+    <h1>🐍 Viborita</h1>
+    
+    <div class="panel-puntajes">
+        <div>Puntos: <span id="puntos">0</span></div>
+        <div class="record">🏆 Récord: <span id="recordPuntos">0</span> (<span id="recordNombre">---</span>)</div>
+    </div>
+    
+    <canvas id="juego" width="400" height="400"></canvas>
+
+    <div class="controles">
+        <button class="btn" onclick="reiniciarJuego()">Reiniciar</button>
+        <a href="../index.html" class="btn">Volver a la Galería</a>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("juego");
+        const ctx = canvas.getContext("2d");
+        const textoPuntos = document.getElementById("puntos");
+        const textoRecordPuntos = document.getElementById("recordPuntos");
+        const textoRecordNombre = document.getElementById("recordNombre");
+
+        // Cargar récord guardado en la memoria del navegador
+        let recordPuntos = Number(localStorage.getItem("viborita_record_puntos")) || 0;
+        let recordNombre = localStorage.getItem("viborita_record_nombre") || "---";
+        textoRecordPuntos.innerText = recordPuntos;
+        textoRecordNombre.innerText = recordNombre;
+
+        const tamano = 20;
+        let vibora = [{ x: 200, y: 200 }];
+        let direccion = { x: 0, y: 0 };
+        let puedeCambiarDireccion = true;
+        let manzana = generarManzana();
+        let puntos = 0;
+        let juegoActivo = true;
+
+        function generarManzana() {
+            return {
+                x: Math.floor(Math.random() * (canvas.width / tamano)) * tamano,
+                y: Math.floor(Math.random() * (canvas.height / tamano)) * tamano
+            };
+        }
+
+        document.addEventListener("keydown", e => {
+            if (!puedeCambiarDireccion) return;
+
+            if (e.key === "ArrowUp" && direccion.y === 0) {
+                direccion = { x: 0, y: -tamano };
+                puedeCambiarDireccion = false;
+            }
+            if (e.key === "ArrowDown" && direccion.y === 0) {
+                direccion = { x: 0, y: tamano };
+                puedeCambiarDireccion = false;
+            }
+            if (e.key === "ArrowLeft" && direccion.x === 0) {
+                direccion = { x: -tamano, y: 0 };
+                puedeCambiarDireccion = false;
+            }
+            if (e.key === "ArrowRight" && direccion.x === 0) {
+                direccion = { x: tamano, y: 0 };
+                puedeCambiarDireccion = false;
+            }
+        });
+
+        function verificarRecord() {
+            if (puntos > recordPuntos) {
+                recordPuntos = puntos;
+                let nombre = prompt("🏆 ¡NUEVO RÉCORD de " + puntos + " puntos!\nIngresa tu nombre (máximo 5 letras):");
+                
+                if (!nombre || nombre.trim() === "") {
+                    nombre = "JUGAD";
+                }
+                
+                // Recortar a máximo 5 letras y pasar a mayúsculas
+                recordNombre = nombre.trim().slice(0, 5).toUpperCase();
+
+                // Guardar en la memoria del navegador
+                localStorage.setItem("viborita_record_puntos", recordPuntos);
+                localStorage.setItem("viborita_record_nombre", recordNombre);
+
+                textoRecordPuntos.innerText = recordPuntos;
+                textoRecordNombre.innerText = recordNombre;
+            } else {
+                alert("¡Perdiste! Puntos totales: " + puntos);
+            }
+        }
+
+        function actualizar() {
+            if (!juegoActivo) return;
+            puedeCambiarDireccion = true;
+
+            if (direccion.x === 0 && direccion.y === 0) {
+                dibujar();
+                return;
+            }
+
+            const cabeza = { x: vibora[0].x + direccion.x, y: vibora[0].y + direccion.y };
+
+            // Chocar contra paredes o contra sí misma
+            if (
+                cabeza.x < 0 || cabeza.x >= canvas.width ||
+                cabeza.y < 0 || cabeza.y >= canvas.height ||
+                vibora.some(parte => parte.x === cabeza.x && parte.y === cabeza.y)
+            ) {
+                juegoActivo = false;
+                verificarRecord();
+                return;
+            }
+
+            vibora.unshift(cabeza);
+
+            if (cabeza.x === manzana.x && cabeza.y === manzana.y) {
+                puntos += 10;
+                textoPuntos.innerText = puntos;
+                manzana = generarManzana();
+            } else {
+                vibora.pop();
+            }
+
+            dibujar();
+        }
+
+        function dibujar() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Manzana
+            ctx.fillStyle = "#ef4444";
+            ctx.fillRect(manzana.x, manzana.y, tamano - 2, tamano - 2);
+
+            // Viborita
+            vibora.forEach((parte, index) => {
+                ctx.fillStyle = index === 0 ? "#4ade80" : "#22c55e";
+                ctx.fillRect(parte.x, parte.y, tamano - 2, tamano - 2);
+            });
+        }
+
+        function reiniciarJuego() {
+            vibora = [{ x: 200, y: 200 }];
+            direccion = { x: 0, y: 0 };
+            manzana = generarManzana();
+            puntos = 0;
+            textoPuntos.innerText = puntos;
+            juegoActivo = true;
+        }
+
+        setInterval(actualizar, 120);
+    </script>
+</body>
+</html>
